@@ -1,0 +1,109 @@
+#!/bin/bash
+# A Shell Script of Subdomain Enumeration by Rishika Agarwal
+# Github: @rishika426
+# Twitter: @A_Rishika_
+# colors
+red="\e[31m"
+green="\e[32m"
+yellow="\e[33m"
+bold=$(tput bold)
+normal=$(tput sgr0)
+right=$(printf '\xE2\x9C\x94')
+end="\e[0m"
+# banner
+banner(){
+[ "$silent" == False ] && echo -e $blue$bold"
+ ____        _                         
+/ ___| _   _| |__  ___  ___
+\___ \| | | | '_ \/ __|/ __|
+ ___) | |_| | |_) \__ \\__ \
+|____/ \__,_|_.__/|___/|___/
+ SubDomains Enumeration Tool
+    By: Rishika Agarwal
+"$end
+}
+# Usage
+Usage() {
+           echo -e "$green
+        Usage: ./subss [-d/--domain] target.com
+                -s / --silent : Only print raw data
+        "$end
+        exit 1
+}
+# Main
+main() {
+[ "$silent" == False ] && echo -e ">> \e[36msubss\e[0m is in progress"
+folder=$target-$(date '-I')
+echo -e $bold " Collecting Subdomains "
+#First level sub domains
+#assetfinder
+assetfinder --subs-only $target | grep -v '\*' | rev | cut -d. -f1-3 | rev | sort -u > 1st-$target-subs.txt
+echo [ "$right" ] "Assetfinder"
+#subfinder
+subfinder -d $target -silent | grep -v '\*' | rev | cut -d. -f1-3 | rev | sort -u >> 1st-$target-subs.txt
+echo [ "$right" ] "Subfinder"
+#amass
+amass enum -passive -d $target | grep -v '\*' | rev | cut -d. -f1-3 | rev | sort -u >> 1st-$target-subs.txt
+echo [ "$right" ] "AMASS"
+#sort
+cat *.txt | sort -u > 1st-all-subs.txt
+rm 1st-$target-*
+#Second level sub domains
+cat 1st-all-subs.txt | xargs -P 100 -n 1 -I@ sh -c "assetfinder --subs-only '@' | grep -v '\*'| tee -a 2nd-subs.txt"
+echo ["$right"] "2nd level Assetfinder"
+cat 1st-all-subs.txt | xargs -P 100 -n 1 -I@ sh -c "subfinder -d '@' -silent | grep -v '\*'| tee -a 2nd-subs.txt"
+echo ["$rightt"] "2nd level Subfinder"
+cat 1st-all-subs.txt | xargs -P 100 -n 1 -I@ sh -c "amass enum -passive -d '@' | grep -v '\*' | tee -a 2nd-subs.txt"
+echo ["$right"] "2nd level AMASS"
+#sort
+cat 1st-all-subs.txt 2nd-subs.txt | sort -u | tee all.txt
+#crt.sh
+curl -sk "https://crt.sh/?q=%.$target&output=json" | jq -r '.[]["common_name"]' | sed '/^*/d' | sort -u
+echo ["$right"] "curt.sh"
+#DNS buffer
+#Threat crowd
+#hacker target
+#cert spotter
+#alienvault
+#urlscan
+#riddler
+#rapidDNS
+#Anubisdb
+#ThreatMiner
+#DNSdumpster
+#Entrust
+#Virustotal
+#ShuffleDNS
+#Alive sub domains
+#Result
+echo "$green subdomains-$target => $end" 
+echo "$green alive-$target => $end"
+}
+target=False
+silent=False
+list=(
+        banner
+        main
+)
+while [ -n "$1" ]; do
+                    case "$1" in
+                        -d | --domain)
+                        target=$2
+                        shift
+                        ;;
+                        -s | --silent)
+                        silent=True ;;
+                        *) echo -e $red"[-]"$end "Unknown Option: $1"
+                        Usage
+                        ;;
+          esac
+shift
+done
+[[ $target == "False" ]] && {
+echo -e $red"[-]"$end "Argument: ./subss [-d/--domain] required"
+Usage
+}
+(
+  banner
+  main
+)
